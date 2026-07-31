@@ -10,8 +10,8 @@ if (process.env.SENTRY_DSN) {
     integrations: [
       nodeProfilingIntegration(),
     ],
-    tracesSampleRate: 1.0, 
-    profilesSampleRate: 1.0,
+    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.1),
+    profilesSampleRate: Number(process.env.SENTRY_PROFILES_SAMPLE_RATE || 0.1),
   });
 }
 

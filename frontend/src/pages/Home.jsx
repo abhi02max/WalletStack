@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { stockApi, healthApi } from '../services/api'
+import { useQueries, useQuery } from '@tanstack/react-query'
+import { stockApi, healthApi, watchlistApi } from '../services/api'
 import { useUser, SignUpButton, SignInButton } from '@clerk/clerk-react'
 import {
   Search,
+  Activity,
   Brain,
   ArrowRight,
   BarChart3,
@@ -19,34 +21,41 @@ import {
 } from 'lucide-react'
 
 const marketTiles = [
-  { label: 'NIFTY 50', symbol: '^NSEI', value: '24,320.55', change: '+0.42%', positive: true },
-  { label: 'SENSEX', symbol: '^BSESN', value: '79,812.44', change: '+0.36%', positive: true },
-  { label: 'NASDAQ', symbol: '^IXIC', value: '18,927.32', change: '-0.18%', positive: false },
-  { label: 'BTC/USD', symbol: 'BTC-USD', value: '$61,840', change: '+1.74%', positive: true },
-]
-
-const watchlistPreview = [
-  { symbol: 'RELIANCE.NS', name: 'Reliance Industries', price: '2,934.20', change: '+1.12%', positive: true },
-  { symbol: 'TCS.NS', name: 'Tata Consultancy', price: '3,912.70', change: '-0.28%', positive: false },
-  { symbol: 'AAPL', name: 'Apple Inc.', price: '213.55', change: '+0.64%', positive: true },
-  { symbol: 'NVDA', name: 'NVIDIA Corp.', price: '126.09', change: '+2.31%', positive: true },
+  { label: 'NIFTY 50', symbol: '^NSEI' },
+  { label: 'SENSEX', symbol: '^BSESN' },
+  { label: 'NASDAQ', symbol: '^IXIC' },
+  { label: 'BTC/USD', symbol: 'BTC-USD' },
 ]
 
 const sectorHeat = [
-  { label: 'IT', change: '+1.8%', size: 'md:col-span-2', tone: 'bg-emerald-500' },
-  { label: 'Banks', change: '+0.7%', size: '', tone: 'bg-emerald-400' },
-  { label: 'Energy', change: '-0.4%', size: '', tone: 'bg-red-400' },
-  { label: 'Auto', change: '+1.1%', size: '', tone: 'bg-emerald-500' },
-  { label: 'Pharma', change: '-0.2%', size: '', tone: 'bg-red-300' },
-  { label: 'FMCG', change: '+0.3%', size: 'md:col-span-2', tone: 'bg-emerald-300' },
+  { label: 'Technology', symbol: 'XLK', size: 'md:col-span-2' },
+  { label: 'Financials', symbol: 'XLF', size: '' },
+  { label: 'Energy', symbol: 'XLE', size: '' },
+  { label: 'Consumer', symbol: 'XLY', size: '' },
+  { label: 'Healthcare', symbol: 'XLV', size: '' },
+  { label: 'Staples', symbol: 'XLP', size: 'md:col-span-2' },
 ]
 
 const quickActions = [
-  { icon: LineChart, title: 'Advanced charts', text: 'Candles, volume, ranges, and clean crosshair analysis.' },
-  { icon: ListFilter, title: 'Market screener', text: 'Explore stocks by symbol, asset type, exchange, and sector.' },
-  { icon: Bell, title: 'Watchlists', text: 'Save ideas and return to them quickly from any device.' },
-  { icon: Brain, title: 'Desk intelligence', text: 'Catalysts, factor risk, valuation pressure, and market-structure context.' },
+  { icon: LineChart, title: 'Advanced charts', text: 'Candles, volume, ranges, and clean crosshair analysis.', path: '/search' },
+  { icon: ListFilter, title: 'Market screener', text: 'Explore stocks by symbol, asset type, exchange, and sector.', path: '/search' },
+  { icon: Bell, title: 'Watchlists', text: 'Save ideas and return to them quickly from any device.', path: '/watchlist' },
+  { icon: Brain, title: 'Desk intelligence', text: 'Catalysts, factor risk, valuation pressure, and market-structure context.', path: '/insights' },
+  { icon: Activity, title: 'Wealth analytics', text: 'Cash-flow history, goal forecasts, concentration, and stress testing.', path: '/analytics' },
 ]
+
+const formatMarketPrice = (quote) => {
+  if (quote?.price == null) return '—'
+  try {
+    return new Intl.NumberFormat(quote.currency === 'INR' ? 'en-IN' : 'en-US', {
+      style: quote.currency ? 'currency' : 'decimal',
+      currency: quote.currency,
+      maximumFractionDigits: 2,
+    }).format(quote.price)
+  } catch {
+    return Number(quote.price).toLocaleString(undefined, { maximumFractionDigits: 2 })
+  }
+}
 
 export default function Home() {
   const [query, setQuery] = useState('')
@@ -55,6 +64,35 @@ export default function Home() {
   const [health, setHealth] = useState(null)
   const navigate = useNavigate()
   const { isSignedIn } = useUser()
+  const { data: watchlistSymbols = [], isLoading: loadingWatchlist } = useQuery({
+    queryKey: ['watchlist'],
+    queryFn: () => watchlistApi.get().then(response => response.data.data || []),
+    enabled: isSignedIn,
+    retry: 1,
+    staleTime: 30000,
+  })
+  const previewSymbols = watchlistSymbols.slice(0, 4)
+  const quoteSymbols = [...new Set([...marketTiles.map(item => item.symbol), ...sectorHeat.map(item => item.symbol), ...previewSymbols])]
+  const quoteQueries = useQueries({
+    queries: quoteSymbols.map(symbol => ({
+      queryKey: ['home-live-quote', symbol],
+      queryFn: () => stockApi.getDetails(symbol).then(response => response.data.data),
+      staleTime: 15000,
+      refetchInterval: 30000,
+      refetchOnWindowFocus: true,
+    })),
+  })
+  const quotes = quoteSymbols.reduce((result, symbol, index) => {
+    result[symbol] = quoteQueries[index]?.data
+    return result
+  }, {})
+  const sectorRows = sectorHeat.map(sector => ({
+    ...sector,
+    change: Number(quotes[sector.symbol]?.changePercent || 0),
+    loaded: quotes[sector.symbol]?.changePercent != null,
+  }))
+  const strongestSector = [...sectorRows].filter(sector => sector.loaded).sort((a, b) => b.change - a.change)[0]
+  const weakestSector = [...sectorRows].filter(sector => sector.loaded).sort((a, b) => a.change - b.change)[0]
 
   useEffect(() => {
     healthApi.check().then(r => setHealth(r.data)).catch(() => {})
@@ -167,7 +205,9 @@ export default function Home() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 dark:divide-slate-800">
             {marketTiles.map((item) => {
-              const TrendIcon = item.positive ? TrendingUp : TrendingDown
+              const quote = quotes[item.symbol]
+              const positive = Number(quote?.changePercent || 0) >= 0
+              const TrendIcon = positive ? TrendingUp : TrendingDown
               return (
                 <button
                   key={item.symbol}
@@ -176,11 +216,11 @@ export default function Home() {
                 >
                   <div className="flex items-center justify-between text-xs text-slate-500 mb-3">
                     <span>{item.label}</span>
-                    <TrendIcon size={15} className={item.positive ? 'text-emerald-500' : 'text-red-500'} />
+                    <TrendIcon size={15} className={positive ? 'text-emerald-500' : 'text-red-500'} />
                   </div>
-                  <div className="font-mono text-xl font-bold text-slate-950 dark:text-white">{item.value}</div>
-                  <div className={`text-sm font-semibold mt-1 ${item.positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {item.change}
+                  <div className="font-mono text-xl font-bold text-slate-950 dark:text-white">{formatMarketPrice(quote)}</div>
+                  <div className={`text-sm font-semibold mt-1 ${positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {quote?.changePercent == null ? 'Loading live quote' : `${positive ? '+' : ''}${Number(quote.changePercent).toFixed(2)}%`}
                   </div>
                 </button>
               )
@@ -198,29 +238,32 @@ export default function Home() {
               Open
             </Link>
           </div>
-          <div className="space-y-2">
-            {watchlistPreview.map((stock) => (
+          {loadingWatchlist ? <div className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-500 dark:bg-[#111111]">Loading your watchlist...</div> : previewSymbols.length ? <div className="space-y-2">
+            {previewSymbols.map((symbol) => {
+              const stock = quotes[symbol] || { symbol }
+              const positive = Number(stock.changePercent || 0) >= 0
+              return (
               <button
-                key={stock.symbol}
-                onClick={() => navigate(`/stock/${stock.symbol}`)}
+                key={symbol}
+                onClick={() => navigate(`/stock/${symbol}`)}
                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors"
               >
                 <div className="w-9 h-9 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-200">
-                  {stock.symbol.slice(0, 2)}
+                  {symbol.slice(0, 2)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-slate-950 dark:text-white">{stock.symbol}</div>
-                  <div className="text-xs text-slate-500 truncate">{stock.name}</div>
+                  <div className="text-sm font-semibold text-slate-950 dark:text-white">{symbol}</div>
+                  <div className="text-xs text-slate-500 truncate">{stock.name || 'Loading company data'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{stock.price}</div>
-                  <div className={`text-xs font-semibold ${stock.positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {stock.change}
+                  <div className="font-mono text-sm font-semibold text-slate-900 dark:text-white">{formatMarketPrice(stock)}</div>
+                  <div className={`text-xs font-semibold ${positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {stock.changePercent == null ? '—' : `${positive ? '+' : ''}${Number(stock.changePercent).toFixed(2)}%`}
                   </div>
                 </div>
               </button>
-            ))}
-          </div>
+            )})}
+          </div> : <div className="rounded-lg bg-slate-50 p-6 text-center dark:bg-[#111111]"><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No stocks saved yet</p><Link to="/search" className="mt-3 inline-flex text-xs font-bold text-emerald-600 dark:text-emerald-400">Build watchlist</Link></div>}
         </aside>
       </section>
 
@@ -234,12 +277,13 @@ export default function Home() {
             <BarChart3 size={20} className="text-slate-400" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {sectorHeat.map((sector) => (
-              <div key={sector.label} className={`${sector.size} ${sector.tone} rounded-lg p-4 text-white min-h-24 flex flex-col justify-between`}>
+            {sectorRows.map((sector) => {
+              const tone = !sector.loaded ? 'bg-slate-400' : sector.change >= 1 ? 'bg-emerald-600' : sector.change >= 0 ? 'bg-emerald-500' : sector.change <= -1 ? 'bg-red-600' : 'bg-red-500'
+              return <button key={sector.label} onClick={() => navigate(`/stock/${sector.symbol}`)} className={`${sector.size} ${tone} rounded-lg p-4 text-left text-white min-h-24 flex flex-col justify-between transition-opacity hover:opacity-90`}>
                 <span className="text-sm font-semibold">{sector.label}</span>
-                <span className="font-mono text-xl font-bold">{sector.change}</span>
-              </div>
-            ))}
+                <span className="font-mono text-xl font-bold">{sector.loaded ? `${sector.change >= 0 ? '+' : ''}${sector.change.toFixed(2)}%` : 'Loading'}</span>
+              </button>
+            })}
           </div>
         </div>
 
@@ -251,7 +295,7 @@ export default function Home() {
           <div className="space-y-4">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Market tone</div>
-              <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">Large-cap technology and banks are leading, while energy is cooling after a strong week.</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{strongestSector && weakestSector ? `${strongestSector.label} leads at ${strongestSector.change >= 0 ? '+' : ''}${strongestSector.change.toFixed(2)}%, while ${weakestSector.label} is the weakest group at ${weakestSector.change >= 0 ? '+' : ''}${weakestSector.change.toFixed(2)}%.` : 'Live sector leadership is loading from current market quotes.'}</p>
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Risk note</div>
@@ -265,17 +309,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         {quickActions.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.title} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+            <Link key={item.title} to={item.path} className="card-hover p-5">
               <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center mb-4">
                 <Icon size={20} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <h3 className="font-semibold text-slate-950 dark:text-white mb-1">{item.title}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">{item.text}</p>
-            </div>
+            </Link>
           )
         })}
       </section>

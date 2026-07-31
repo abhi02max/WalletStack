@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useUser, UserButton, SignInButton, SignUpButton } from '@clerk/clerk-react'
 import { useTheme } from '../context/ThemeContext'
 import { useAccessibility } from '../context/AccessibilityContext'
-import { Accessibility, BarChart3, BrainCircuit, CircleDollarSign, GitCompare, Goal, Menu, Moon, Search, Star, Sun, WalletCards, X, Home, Briefcase } from 'lucide-react'
+import { Accessibility, Activity, BarChart3, BrainCircuit, CircleDollarSign, GitCompare, Goal, Menu, Moon, Search, Star, Sun, WalletCards, X, Home, Briefcase } from 'lucide-react'
 import WalletStackMark from './WalletStackMark'
 
 export default function Layout() {
@@ -22,6 +22,7 @@ export default function Layout() {
     { path: '/', label: 'Home', icon: Home },
     { path: '/search', label: 'Markets', icon: Search },
     { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
+    { path: '/analytics', label: 'Analytics', icon: Activity },
     { path: '/budget', label: 'Budget', icon: CircleDollarSign },
     { path: '/goals', label: 'Goals', icon: Goal },
     { path: '/insights', label: 'Insights', icon: BrainCircuit },
@@ -30,6 +31,7 @@ export default function Layout() {
     { label: 'Open WalletStack overview', hint: 'Dashboard', path: '/', icon: Home },
     { label: 'Search global markets', hint: 'Stocks, ETFs, crypto', path: '/search', icon: Search },
     { label: 'Open portfolio tracker', hint: 'Positions and allocation', path: '/portfolio', icon: Briefcase },
+    { label: 'Open wealth analytics', hint: 'Cash flow, risk, forecasts', path: '/analytics', icon: Activity },
     { label: 'Open budget control', hint: 'Cash flow and expenses', path: '/budget', icon: CircleDollarSign },
     { label: 'Open financial goals', hint: 'Targets and milestones', path: '/goals', icon: Goal },
     { label: 'Open personal insights', hint: 'AI-ready finance brief', path: '/insights', icon: BrainCircuit },

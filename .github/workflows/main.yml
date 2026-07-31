@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: WalletStack CI
 
 on:
   push:
@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Use Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         cache: 'npm'
@@ -30,13 +30,8 @@ jobs:
       working-directory: ./frontend
       run: npm run build
 
-    # In the future, we will add test steps here
-    # - name: Run Backend Tests
-    #   run: npm test
-    # - name: Run Frontend Tests
-    #   working-directory: ./frontend
-    #   run: npm test
+    - name: Lint Frontend
+      working-directory: ./frontend
+      run: npm run lint
 
-  # Deployment is currently handled automatically by Vercel and Render
-  # based on GitHub pushes to the main branch.
-  # Future configuration could trigger deployments manually via webhooks here.
+  # DigitalOcean App Platform deploys main automatically after CI succeeds.

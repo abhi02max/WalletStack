@@ -16,6 +16,7 @@ const Portfolio = lazy(() => import('./pages/Portfolio'))
 const Budget = lazy(() => import('./pages/Budget'))
 const Goals = lazy(() => import('./pages/Goals'))
 const Insights = lazy(() => import('./pages/Insights'))
+const Analytics = lazy(() => import('./pages/Analytics'))
 
 function PageLoader() {
   return (
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="/budget" element={<Budget />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/insights" element={<Insights />} />
+            <Route path="/analytics" element={<Analytics />} />
 
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/settings" element={<Settings />} />

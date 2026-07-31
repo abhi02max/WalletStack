@@ -30,6 +30,10 @@ const swaggerOptions = {
         url: 'http://localhost:5001/api',
         description: 'Development server',
       },
+      {
+        url: 'https://api.walletstack.in/api',
+        description: 'Production server',
+      },
     ],
   },
   apis: ['./src/routes/*.js', './src/controllers/*.js'],
@@ -51,7 +55,7 @@ app.use(mongoSanitize());
 
 // SECURITY Middleware: CORS for frontend requests
 // In production, restrict this to your specific frontend URL
-const productionOrigins = (process.env.CLIENT_URL || 'https://walletstack-app.vercel.app')
+const productionOrigins = (process.env.CLIENT_URL || 'https://walletstack.in,https://www.walletstack.in')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
@@ -59,9 +63,20 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
   ? productionOrigins
   : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'];
 
-app.use(cors({
+app.use((req, res, next) => cors({
   origin: function(origin, callback) {
-    if(!origin || allowedOrigins.includes(origin)) {
+    let isSameOrigin = false;
+
+    if (origin) {
+      try {
+        const requestHost = req.get('x-forwarded-host') || req.get('host');
+        isSameOrigin = new URL(origin).host === requestHost;
+      } catch {
+        isSameOrigin = false;
+      }
+    }
+
+    if (!origin || isSameOrigin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -71,7 +86,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400
-}));
+})(req, res, next));
 
 // SECURITY Middleware: Rate Limiting
 // Development: Very lenient or disabled on localhost
@@ -81,11 +96,12 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 // General API rate limiter (loose in dev, strict in prod)
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 10000 : 100, // 10k in dev, 100 in prod per IP per 15 minutes
+  // Live dashboards can legitimately make several requests per minute.
+  max: isDevelopment ? 10000 : 1500,
   message: 'Too many requests from this IP, please try again after 15 minutes',
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => isDevelopment && req.ip === '::1', // Skip localhost in dev
+  skip: (req) => req.path === '/health' || (isDevelopment && req.ip === '::1'),
 });
 // Apply general rate limiter to all API routes
 app.use('/api/', apiLimiter);

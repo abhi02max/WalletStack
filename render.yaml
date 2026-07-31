@@ -1,15 +1,15 @@
 services:
   - type: web
-    name: alphalens-backend
+    name: walletstack-api
     env: node
+    region: singapore
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 5001
       - key: MONGODB_URI
         sync: false
       - key: UPSTASH_REDIS_URL
@@ -20,7 +20,25 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: OPENROUTER_MODELS
+        sync: false
       - key: RESEND_API_KEY
         sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_TRACES_SAMPLE_RATE
+        value: "0.1"
+      - key: SENTRY_PROFILES_SAMPLE_RATE
+        value: "0.1"
+      - key: TWELVE_DATA_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: DEBUG_MARKET_DATA
+        value: "false"
       - key: CLIENT_URL
         sync: false
