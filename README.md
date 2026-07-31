@@ -4,6 +4,8 @@ WalletStack is a personal finance and market-intelligence platform with live
 equity research, virtual trading, portfolio tracking, budgeting, goals, and
 AI-assisted financial insights.
 
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/abhi02max/WalletStack/tree/main)
+
 ## Stack
 
 - React, Vite, TanStack Query, Clerk, and Lightweight Charts

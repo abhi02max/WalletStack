@@ -1,0 +1,102 @@
+spec:
+  name: walletstack
+  region: blr
+
+  alerts:
+    - rule: DEPLOYMENT_FAILED
+    - rule: DOMAIN_FAILED
+
+  ingress:
+    rules:
+      - component:
+          name: api
+          preserve_path_prefix: true
+        match:
+          path:
+            prefix: /api
+      - component:
+          name: web
+        match:
+          path:
+            prefix: /
+
+  services:
+    - name: api
+      environment_slug: node-js
+      git:
+        repo_clone_url: https://github.com/abhi02max/WalletStack.git
+        branch: main
+      source_dir: /
+      build_command: npm ci
+      run_command: npm start
+      http_port: 8080
+      instance_count: 1
+      instance_size_slug: apps-s-1vcpu-0.5gb
+      health_check:
+        http_path: /api/health
+      envs:
+        - key: NODE_ENV
+          value: production
+          scope: RUN_TIME
+          type: GENERAL
+        - key: PORT
+          value: "8080"
+          scope: RUN_TIME
+          type: GENERAL
+        - key: DEBUG_MARKET_DATA
+          value: "false"
+          scope: RUN_TIME
+          type: GENERAL
+        - key: MONGODB_URI
+          value: REPLACE_WITH_MONGODB_URI
+          scope: RUN_TIME
+          type: SECRET
+        - key: UPSTASH_REDIS_URL
+          value: REPLACE_WITH_REDIS_URL
+          scope: RUN_TIME
+          type: SECRET
+        - key: CLERK_SECRET_KEY
+          value: REPLACE_WITH_CLERK_SECRET_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: OPENROUTER_API_KEY
+          value: REPLACE_WITH_OPENROUTER_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: OPENROUTER_MODELS
+          value: meta-llama/llama-3.1-8b-instruct,tencent/hy3:free,cohere/north-mini-code:free
+          scope: RUN_TIME
+          type: GENERAL
+        - key: TWELVE_DATA_API_KEY
+          value: REPLACE_WITH_TWELVE_DATA_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: ALPHA_VANTAGE_API_KEY
+          value: REPLACE_WITH_ALPHA_VANTAGE_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: FINNHUB_API_KEY
+          value: REPLACE_WITH_FINNHUB_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+        - key: FMP_API_KEY
+          value: REPLACE_WITH_FMP_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+
+  static_sites:
+    - name: web
+      environment_slug: node-js
+      git:
+        repo_clone_url: https://github.com/abhi02max/WalletStack.git
+        branch: main
+      source_dir: frontend
+      build_command: npm ci && npm run build
+      output_dir: dist
+      index_document: index.html
+      catchall_document: index.html
+      envs:
+        - key: VITE_CLERK_PUBLISHABLE_KEY
+          value: REPLACE_WITH_CLERK_PUBLISHABLE_KEY
+          scope: BUILD_TIME
+          type: SECRET
